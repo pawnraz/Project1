@@ -1,12 +1,12 @@
 import * as XLSX from 'xlsx';
-import { ExcelRow, ExcelValidationError } from '@/types/excel';
+import { ExcelRow } from '@/types/excel';
 import { excelRowSchema } from '@/validations/excel.schema';
 
 export const parseExcelFile = async (
 	file: Buffer
 ): Promise<{
 	data?: ExcelRow[];
-	errors?: ExcelValidationError[];
+	errors?: any[];
 }> => {
 	try {
 		const workbook = XLSX.read(file, { type: 'buffer' });
@@ -19,7 +19,7 @@ export const parseExcelFile = async (
 			throw new Error('Invalid Excel file format or empty file');
 		}
 
-		const errors: ExcelValidationError[] = [];
+		const errors: any[] = [];
 		const validRows: ExcelRow[] = [];
 
 		// Validate required columns exist
