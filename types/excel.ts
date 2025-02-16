@@ -1,22 +1,32 @@
 export interface ExcelRow {
-  name: string;
-  institutionName: string;
-  email: string;
+	email: string;
+	[key: string]: string;
+}
+
+export interface ExcelUploadError {
+	code: string;
+	details: string;
+}
+
+export interface ExcelUploadData {
+	headers: string[];
+	records: ExcelRow[];
+	totalRecords: number;
 }
 
 export interface ExcelUploadResponse {
-  status: 'success' | 'error';
-  message: string;
-  data?: {
-    records: ExcelRow[];
-    totalRecords: number;
-  };
-  error?: {
-    details: string;
-  };
+	success: boolean;
+	data?: ExcelUploadData;
+	error?: ExcelUploadError;
 }
 
-export interface ExcelValidationError {
-  row: number;
-  errors: string[];
+export interface SendEmailRequest {
+	template: string;
+	recipients: ExcelRow[];
+}
+
+export interface SendEmailResponse {
+	success: boolean;
+	message: string;
+	errors?: string[];
 }
