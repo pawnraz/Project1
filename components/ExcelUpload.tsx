@@ -110,7 +110,7 @@ export function ExcelUpload({ onUploadSuccess }: ExcelUploadProps) {
 	};
 
 	return (
-		<Card className='p-6'>
+		<Card className='border-none p-6 shadow-none'>
 			<div className='w-full space-y-4' onDragOver={handleDragOver} onDrop={handleDrop}>
 				<div className='flex flex-col items-center space-y-4 rounded-lg border-2 border-dashed p-6 transition-colors hover:border-primary/50'>
 					<Upload className='h-8 w-8 text-muted-foreground' />

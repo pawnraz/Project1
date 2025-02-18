@@ -1,20 +1,35 @@
 generator client {
-	provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-	provider = "mongodb"
-	url      = env("DATABASE_URL")
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id              String    @id @default(auto()) @map("_id") @db.ObjectId
-  email           String    @unique
-  name            String
-  password        String
-  profilePicture  String?   @map("profile_picture")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  id             String          @id @default(auto()) @map("_id") @db.ObjectId
+  email          String          @unique
+  name           String
+  password       String
+  profilePicture String?         @map("profile_picture")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  emailSettings  EmailSettings[] @relation("UserEmailSettings")
 
   @@map("users")
+}
+
+model EmailSettings {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String   @db.ObjectId
+  smtpUser     String   @unique @map("smtp_user")
+  smtpPassword String   @map("smtp_password")
+  smtpFrom     String   @map("smtp_from")
+  isDefault    Boolean  @default(false) @map("is_default")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  user         User     @relation("UserEmailSettings", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("email_settings")
 }

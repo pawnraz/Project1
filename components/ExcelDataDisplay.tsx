@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,9 +13,17 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { ExcelRow } from '@/types/excel';
 import { TemplateEditor } from './TemplateEditor';
+
+interface EmailSettings {
+	id: string;
+	smtpUser: string;
+	smtpFrom: string;
+	isDefault: boolean;
+}
 
 interface ExcelDataDisplayProps {
 	data: ExcelRow[];
@@ -26,6 +34,35 @@ export function ExcelDataDisplay({ data }: ExcelDataDisplayProps) {
 	const [isSending, setIsSending] = useState(false);
 	const [template, setTemplate] = useState('');
 	const [subject, setSubject] = useState('');
+	const [emailSettings, setEmailSettings] = useState<EmailSettings[]>([]);
+	const [selectedEmailSettings, setSelectedEmailSettings] = useState<string>('');
+	const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+
+	useEffect(() => {
+		const fetchEmailSettings = async () => {
+			try {
+				const response = await fetch('/api/email-settings');
+				if (!response.ok) throw new Error('Failed to fetch email settings');
+				const data = await response.json();
+				setEmailSettings(data);
+
+				// Set default email settings if available
+				const defaultSettings = data.find((settings: EmailSettings) => settings.isDefault);
+				if (defaultSettings) {
+					setSelectedEmailSettings(defaultSettings.id);
+				} else if (data.length > 0) {
+					setSelectedEmailSettings(data[0].id);
+				}
+			} catch (error) {
+				console.error('Error fetching email settings:', error);
+				toast.error('Failed to fetch email settings');
+			} finally {
+				setIsLoadingSettings(false);
+			}
+		};
+
+		fetchEmailSettings();
+	}, []);
 
 	if (!data.length) return null;
 
@@ -40,6 +77,11 @@ export function ExcelDataDisplay({ data }: ExcelDataDisplayProps) {
 			return;
 		}
 
+		if (!selectedEmailSettings) {
+			toast.error('Please select email settings to use');
+			return;
+		}
+
 		setIsSending(true);
 		try {
 			const response = await fetch('/api/send-emails', {
@@ -51,6 +93,7 @@ export function ExcelDataDisplay({ data }: ExcelDataDisplayProps) {
 					template,
 					subject,
 					recipients: data,
+					emailSettingsId: selectedEmailSettings,
 				}),
 			});
 
@@ -103,6 +146,30 @@ export function ExcelDataDisplay({ data }: ExcelDataDisplayProps) {
 							</DialogDescription>
 						</DialogHeader>
 						<div className='mt-4 space-y-6'>
+							<div className='space-y-2'>
+								<Label htmlFor='emailSettings'>Send From</Label>
+								{isLoadingSettings ? (
+									<p className='text-sm text-muted-foreground'>Loading email settings...</p>
+								) : emailSettings.length === 0 ? (
+									<p className='text-sm text-muted-foreground'>
+										No email settings found. Please configure your email settings first.
+									</p>
+								) : (
+									<Select value={selectedEmailSettings} onValueChange={setSelectedEmailSettings}>
+										<SelectTrigger>
+											<SelectValue placeholder='Select email settings' />
+										</SelectTrigger>
+										<SelectContent>
+											{emailSettings.map((settings) => (
+												<SelectItem key={settings.id} value={settings.id}>
+													{settings.smtpFrom}
+													{settings.isDefault && ' (Default)'}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								)}
+							</div>
 							<div className='space-y-2'>
 								<Label htmlFor='subject'>Email Subject</Label>
 								<Input
