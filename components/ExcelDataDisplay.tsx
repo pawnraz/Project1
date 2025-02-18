@@ -37,6 +37,7 @@ export function ExcelDataDisplay({ data }: ExcelDataDisplayProps) {
 	const [emailSettings, setEmailSettings] = useState<EmailSettings[]>([]);
 	const [selectedEmailSettings, setSelectedEmailSettings] = useState<string>('');
 	const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+	const [interval, setInterval] = useState(0);
 
 	useEffect(() => {
 		const fetchEmailSettings = async () => {
@@ -169,6 +170,24 @@ export function ExcelDataDisplay({ data }: ExcelDataDisplayProps) {
 										</SelectContent>
 									</Select>
 								)}
+							</div>
+							<div className='flex items-center gap-4'>
+								<div className='flex-1'>
+									<Label htmlFor='interval'>Send Interval (seconds)</Label>
+									<Input
+										id='interval'
+										type='number'
+										min={0}
+										value={interval}
+										onChange={(e) => {
+											const value = parseInt(e.target.value) || 0;
+											if (value < 0) return;
+											setInterval(value);
+										}}
+										placeholder='Enter interval in seconds'
+										className='w-full'
+									/>
+								</div>
 							</div>
 							<div className='space-y-2'>
 								<Label htmlFor='subject'>Email Subject</Label>

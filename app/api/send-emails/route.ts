@@ -10,6 +10,7 @@ const sendEmailSchema = z.object({
 	template: z.string().min(1, 'Template is required'),
 	subject: z.string().min(1, 'Subject is required'),
 	emailSettingsId: z.string().optional(), // Optional: specific email settings to use
+	interval: z.number().min(0).default(0), // Interval in seconds
 	recipients: z.array(
 		z
 			.object({
@@ -23,6 +24,8 @@ function replacePlaceholders(template: string, data: Record<string, string>) {
 	return template.replace(/\{\{([^}]+)\}\}/g, (_, key) => data[key.trim()] || '');
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export async function POST(request: NextRequest) {
 	try {
 		const session = await getServerSession(authOptions);
@@ -31,7 +34,7 @@ export async function POST(request: NextRequest) {
 		}
 
 		const body = await request.json();
-		const { template, subject, recipients, emailSettingsId } = sendEmailSchema.parse(body);
+		const { template, subject, recipients, emailSettingsId, interval } = sendEmailSchema.parse(body);
 
 		// Fetch email settings
 		let emailSettings = await prisma.emailSettings.findFirst({
@@ -89,10 +92,15 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		// Send emails to all recipients
+		// Send emails to all recipients with interval delay if specified
 		const results = await Promise.allSettled(
-			recipients.map(async (recipient) => {
+			recipients.map(async (recipient, index) => {
 				try {
+					// Add delay based on interval if specified
+					if (interval > 0 && index > 0) {
+						await sleep(interval * 1000); // Convert seconds to milliseconds
+					}
+
 					const emailContent = replacePlaceholders(template, recipient);
 					const subjectContent = replacePlaceholders(subject, recipient);
 
@@ -136,6 +144,7 @@ export async function POST(request: NextRequest) {
 			success: successful > 0,
 			message: `Successfully sent ${successful} emails${failed > 0 ? `, ${failed} failed` : ''}`,
 			...(errors.length > 0 && { errors }),
+			interval,
 		});
 	} catch (error) {
 		console.error('Error sending emails:', error);
