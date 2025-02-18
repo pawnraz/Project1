@@ -1,43 +1,82 @@
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import { z } from 'zod';
+import { getServerSession } from 'next-auth';
+
+import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
 const sendEmailSchema = z.object({
 	template: z.string().min(1, 'Template is required'),
 	subject: z.string().min(1, 'Subject is required'),
+	emailSettingsId: z.string().optional(), // Optional: specific email settings to use
+	interval: z.number().min(0).default(0), // Interval in seconds
 	recipients: z.array(
 		z
 			.object({
 				email: z.string().email('Valid email is required'),
 			})
 			.catchall(z.string())
-	), // Allow any additional string fields
-});
-
-// Create reusable transporter object using SMTP transport
-const transporter = nodemailer.createTransport({
-	host: process.env.SMTP_HOST,
-	port: Number(process.env.SMTP_PORT),
-	secure: process.env.SMTP_SECURE === 'true',
-	auth: {
-		user: process.env.SMTP_USER,
-		pass: process.env.SMTP_PASS,
-	},
+	),
 });
 
 function replacePlaceholders(template: string, data: Record<string, string>) {
 	return template.replace(/\{\{([^}]+)\}\}/g, (_, key) => data[key.trim()] || '');
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export async function POST(request: NextRequest) {
 	try {
-		const body = await request.json();
-		const { template, subject, recipients } = sendEmailSchema.parse(body);
-
-		// Validate SMTP configuration
-		if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
-			return NextResponse.json({ success: false, error: 'SMTP configuration is missing' }, { status: 500 });
+		const session = await getServerSession(authOptions);
+		if (!session?.user) {
+			return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 		}
+
+		const body = await request.json();
+		const { template, subject, recipients, emailSettingsId, interval } = sendEmailSchema.parse(body);
+
+		// Fetch email settings
+		let emailSettings = await prisma.emailSettings.findFirst({
+			where: {
+				userId: session.user.id,
+				...(emailSettingsId ? { id: emailSettingsId } : { isDefault: true }), // Use specified settings or default
+				...(emailSettingsId && { id: emailSettingsId }),
+			},
+		});
+
+		if (!emailSettings) {
+			// If specific settings were requested but not found, or if no default exists
+			if (emailSettingsId) {
+				return NextResponse.json({ success: false, error: 'Specified email settings not found' }, { status: 404 });
+			}
+
+			// Try to get any available settings if no default exists
+			const anySettings = await prisma.emailSettings.findFirst({
+				where: { userId: session.user.id },
+			});
+
+			if (!anySettings) {
+				return NextResponse.json(
+					{ success: false, error: 'No email settings found. Please configure your email settings first.' },
+					{ status: 404 }
+				);
+			}
+
+			// Use the first available settings
+			emailSettings = anySettings;
+		}
+
+		// Create transporter with the selected settings
+		const transporter = nodemailer.createTransport({
+			host: process.env.SMTP_HOST,
+			port: Number(process.env.SMTP_PORT),
+			secure: process.env.SMTP_SECURE === 'true',
+			auth: {
+				user: emailSettings.smtpUser,
+				pass: emailSettings.smtpPassword,
+			},
+		});
 
 		// Verify SMTP connection before sending
 		try {
@@ -53,16 +92,20 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		// Send emails to all recipients
+		// Send emails to all recipients with interval delay if specified
 		const results = await Promise.allSettled(
-			recipients.map(async (recipient) => {
+			recipients.map(async (recipient, index) => {
 				try {
-					// Use all fields from recipient for placeholder replacement
+					// Add delay based on interval if specified
+					if (interval > 0 && index > 0) {
+						await sleep(interval * 1000); // Convert seconds to milliseconds
+					}
+
 					const emailContent = replacePlaceholders(template, recipient);
 					const subjectContent = replacePlaceholders(subject, recipient);
 
 					await transporter.sendMail({
-						from: process.env.SMTP_FROM || process.env.SMTP_USER,
+						from: emailSettings.smtpFrom,
 						to: recipient.email,
 						subject: subjectContent,
 						text: emailContent,
@@ -95,12 +138,13 @@ export async function POST(request: NextRequest) {
 				const result = (r as PromiseFulfilledResult<{ email: string; error?: string }>).value;
 				return `${result.email}: ${result.error || 'Unknown error'}`;
 			})
-			.filter((error, index, self) => self.indexOf(error) === index); // Unique errors only
+			.filter((error, index, self) => self.indexOf(error) === index);
 
 		return NextResponse.json({
 			success: successful > 0,
 			message: `Successfully sent ${successful} emails${failed > 0 ? `, ${failed} failed` : ''}`,
 			...(errors.length > 0 && { errors }),
+			interval,
 		});
 	} catch (error) {
 		console.error('Error sending emails:', error);
