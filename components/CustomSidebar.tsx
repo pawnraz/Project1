@@ -1,5 +1,6 @@
+'use client';
 import * as React from 'react';
-import { LogOut, LucideProps } from 'lucide-react';
+import { Home, LogOut, LucideProps, Settings } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
 	Sidebar,
@@ -27,7 +28,22 @@ type SidebarRoute = {
 	icon: React.ForwardRefExoticComponent<Omit<LucideProps, 'ref'> & React.RefAttributes<SVGSVGElement>>;
 };
 
-export default function AppSidebar({ children, pages }: { children: React.ReactNode; pages: SidebarRoute[] }) {
+const pages = [
+	{
+		name: 'Home',
+		url: '/',
+		isAdmin: false,
+		icon: Home,
+	},
+	{
+		name: 'Settings',
+		url: '/settings',
+		isAdmin: false,
+		icon: Settings,
+	},
+];
+
+export default function AppSidebar({ children }: { children: React.ReactNode }) {
 	const [isOpen, setIsOpen] = React.useState(false);
 	return (
 		<SidebarProvider open={isOpen} onOpenChange={setIsOpen}>
@@ -47,23 +63,28 @@ export function SidebarComponent({ children, pages }: { children: React.ReactNod
 				<SidebarHeader>
 					<SidebarMenu>
 						<SidebarMenuItem>
-							<Avatar className='flex h-8 w-8 items-center justify-center rounded-sm bg-transparent p-1'>
-								<AvatarImage src={user?.profilePicture ?? undefined} className='rounded-sm' />
-								<AvatarFallback className='rounded-sm'>
-									{user?.name
-										? user?.name
-												.split(' ')
-												.map((word) => word[0])
-												.join('')
-												.slice(0, 2)
-												.toUpperCase()
-										: 'QI'}
-								</AvatarFallback>
-							</Avatar>
-							<div className='grid flex-1 text-left text-sm leading-tight'>
-								<span className='truncate font-semibold'>{user?.name ?? 'Unknown'}</span>
-								<span className='truncate text-xs'>{user?.email ?? 'Unknown'}</span>
-							</div>
+							<SidebarMenuButton
+								size='lg'
+								className='data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground'
+							>
+								<Avatar className='flex h-8 w-8 items-center justify-center rounded-sm bg-transparent p-1'>
+									<AvatarImage src={user?.profilePicture ?? undefined} className='rounded-sm' />
+									<AvatarFallback className='rounded-sm'>
+										{user?.name
+											? user?.name
+													.split(' ')
+													.map((word) => word[0])
+													.join('')
+													.slice(0, 2)
+													.toUpperCase()
+											: 'QI'}
+									</AvatarFallback>
+								</Avatar>
+								<div className='grid flex-1 text-left text-sm leading-tight'>
+									<span className='truncate font-semibold'>{user?.name ?? 'Unknown'}</span>
+									<span className='truncate text-xs'>{user?.email ?? 'Unknown'}</span>
+								</div>
+							</SidebarMenuButton>
 						</SidebarMenuItem>
 					</SidebarMenu>
 				</SidebarHeader>

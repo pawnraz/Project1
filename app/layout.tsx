@@ -5,6 +5,7 @@ import { Nunito } from 'next/font/google';
 import Loading from './loading';
 import { Suspense } from 'react';
 import Providers from './providers';
+import AppSidebar from '@/components/CustomSidebar';
 
 const nunito = Nunito({
 	subsets: ['latin'],
@@ -25,8 +26,10 @@ export default async function RootLayout({
 			<body className={`antialiased ${nunito.className}`}>
 				<Suspense fallback={<Loading />}>
 					<Providers>
-						<Toaster duration={2500} richColors closeButton position='top-right' />
-						{children}
+						<AppSidebar>
+							<Toaster duration={2500} richColors closeButton position='top-right' />
+							{children}
+						</AppSidebar>
 					</Providers>
 				</Suspense>
 			</body>
