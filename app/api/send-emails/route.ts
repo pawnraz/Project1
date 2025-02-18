@@ -92,38 +92,46 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		// Send emails to all recipients with interval delay if specified
-		const results = await Promise.allSettled(
-			recipients.map(async (recipient, index) => {
-				try {
-					// Add delay based on interval if specified
-					if (interval > 0 && index > 0) {
-						await sleep(interval * 1000); // Convert seconds to milliseconds
-					}
+		// Send emails to all recipients sequentially with interval delay
+		const results = [];
 
-					const emailContent = replacePlaceholders(template, recipient);
-					const subjectContent = replacePlaceholders(subject, recipient);
+		for (let i = 0; i < recipients.length; i++) {
+			try {
+				// Add delay before sending each email (except the first one)
+				if (interval > 0 && i > 0) {
+					await sleep(interval * 1000); // Convert seconds to milliseconds
+				}
 
-					await transporter.sendMail({
-						from: emailSettings.smtpFrom,
-						to: recipient.email,
-						subject: subjectContent,
-						text: emailContent,
-					});
+				const recipient = recipients[i];
+				const emailContent = replacePlaceholders(template, recipient);
+				const subjectContent = replacePlaceholders(subject, recipient);
+				console.log(`Email sent to ${recipient.email} at ${new Date().toISOString()}`);
 
-					return {
+				await transporter.sendMail({
+					from: emailSettings.smtpFrom,
+					to: recipient.email,
+					subject: subjectContent,
+					text: emailContent,
+				});
+
+				results.push({
+					status: 'fulfilled',
+					value: {
 						email: recipient.email,
 						status: 'success',
-					};
-				} catch (error) {
-					return {
-						email: recipient.email,
+					},
+				});
+			} catch (error) {
+				results.push({
+					status: 'fulfilled',
+					value: {
+						email: recipients[i].email,
 						status: 'failed',
 						error: error instanceof Error ? error.message : 'Failed to send email',
-					};
-				}
-			})
-		);
+					},
+				});
+			}
+		}
 
 		// Process results
 		const successfulResults = results.filter((r) => r.status === 'fulfilled' && r.value.status === 'success');

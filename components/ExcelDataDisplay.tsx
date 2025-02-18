@@ -94,6 +94,7 @@ export function ExcelDataDisplay({ data }: ExcelDataDisplayProps) {
 					template,
 					subject,
 					recipients: data,
+					interval,
 					emailSettingsId: selectedEmailSettings,
 				}),
 			});
