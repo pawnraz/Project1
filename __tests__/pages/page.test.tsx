@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import HomePage from '@/app/page';
+import HomePage from '@/app/(main)/page';
 import { useSession } from 'next-auth/react';
 
 describe('Page', () => {
