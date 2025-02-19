@@ -38,6 +38,8 @@ export function ExcelDataDisplay({ data }: ExcelDataDisplayProps) {
 	const [selectedEmailSettings, setSelectedEmailSettings] = useState<string>('');
 	const [isLoadingSettings, setIsLoadingSettings] = useState(true);
 	const [interval, setInterval] = useState(0);
+	const [cc, setCc] = useState<string[]>([]);
+	const [ccInput, setCcInput] = useState('');
 
 	useEffect(() => {
 		const fetchEmailSettings = async () => {
@@ -96,6 +98,7 @@ export function ExcelDataDisplay({ data }: ExcelDataDisplayProps) {
 					recipients: data,
 					interval,
 					emailSettingsId: selectedEmailSettings,
+					cc: cc.length > 0 ? cc : undefined,
 				}),
 			});
 
@@ -128,6 +131,18 @@ export function ExcelDataDisplay({ data }: ExcelDataDisplayProps) {
 		}
 	};
 
+	const handleAddCc = () => {
+		if (ccInput.trim()) {
+			const email = ccInput.trim();
+			if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+				setCc([...cc, email]);
+				setCcInput('');
+			} else {
+				toast.error('Please enter a valid email address');
+			}
+		}
+	};
+
 	return (
 		<Card className='w-full'>
 			<CardHeader className='flex flex-row items-center justify-between'>
@@ -139,7 +154,7 @@ export function ExcelDataDisplay({ data }: ExcelDataDisplayProps) {
 							Send Emails
 						</Button>
 					</DialogTrigger>
-					<DialogContent className='max-w-4xl'>
+					<DialogContent className='max-h-[90dvh] max-w-4xl overflow-y-auto'>
 						<DialogHeader>
 							<DialogTitle>Send Personalized Emails</DialogTitle>
 							<DialogDescription>
@@ -170,6 +185,41 @@ export function ExcelDataDisplay({ data }: ExcelDataDisplayProps) {
 											))}
 										</SelectContent>
 									</Select>
+								)}
+							</div>
+							<div className='space-y-2'>
+								<Label htmlFor='cc'>CC Recipients</Label>
+								<div className='flex gap-2'>
+									<Input
+										id='cc'
+										value={ccInput}
+										onChange={(e) => setCcInput(e.target.value)}
+										placeholder='Enter email and press Enter'
+										onKeyDown={(e) => {
+											if (e.key === 'Enter') {
+												e.preventDefault();
+												handleAddCc();
+											}
+										}}
+									/>
+									<Button type='button' variant='secondary' onClick={handleAddCc}>
+										Add
+									</Button>
+								</div>
+								{cc.length > 0 && (
+									<div className='mt-2 flex flex-wrap gap-2'>
+										{cc.map((email, index) => (
+											<div key={index} className='flex items-center gap-1 rounded-md bg-secondary px-2 py-1'>
+												<span className='text-sm'>{email}</span>
+												<button
+													onClick={() => setCc(cc.filter((_, i) => i !== index))}
+													className='text-muted-foreground hover:text-foreground'
+												>
+													×
+												</button>
+											</div>
+										))}
+									</div>
 								)}
 							</div>
 							<div className='flex items-center gap-4'>

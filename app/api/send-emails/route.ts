@@ -11,6 +11,7 @@ const sendEmailSchema = z.object({
 	subject: z.string().min(1, 'Subject is required'),
 	emailSettingsId: z.string().optional(), // Optional: specific email settings to use
 	interval: z.number().min(0).default(0), // Interval in seconds
+	cc: z.array(z.string().email('Valid email is required')).optional(),
 	recipients: z.array(
 		z
 			.object({
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
 		}
 
 		const body = await request.json();
-		const { template, subject, recipients, emailSettingsId, interval } = sendEmailSchema.parse(body);
+		const { template, subject, recipients, emailSettingsId, interval, cc } = sendEmailSchema.parse(body);
 
 		// Fetch email settings
 		let emailSettings = await prisma.emailSettings.findFirst({
@@ -95,6 +96,7 @@ export async function POST(request: NextRequest) {
 		// Send emails to all recipients sequentially with interval delay
 		const results = [];
 
+		console.log(body.cc);
 		for (let i = 0; i < recipients.length; i++) {
 			try {
 				// Add delay before sending each email (except the first one)
@@ -110,6 +112,7 @@ export async function POST(request: NextRequest) {
 				await transporter.sendMail({
 					from: emailSettings.smtpFrom,
 					to: recipient.email,
+					cc: body.cc,
 					subject: subjectContent,
 					text: emailContent,
 				});
